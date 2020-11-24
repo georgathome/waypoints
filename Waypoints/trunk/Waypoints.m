@@ -25,7 +25,6 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 %	 NBR	- Segment number of joined WAYPOINTS.
 %	 INITPOINT - Initial point [x(1) y(1)].
 %	 TERMPOINT - Terminal Point [x(end) y(end)].
-%	 NBREL	- Number of waypoints in the WAYPOINTS object.
 %	
 %	WAYPOINTS Methods:
 %	 - INSTANTIATION
@@ -49,6 +48,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 %	   unwrap	- Unwrap property HEAD.
 % 
 %	 - POINT REDUCTION/CURVE FITTING
+%	   numwp		 - Number of waypoints.
 %	   douglasPeuker - Ramer–Douglas–Peucker point reduction algorithm. 
 %	   fitStraight	 - Fit straight line to waypoints.
 %	   fitCircle	 - Fit circle to waypoints.
@@ -139,9 +139,6 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 		
 		% TERMPOINT - The terminal (end) waypoint.
 		termPoint
-		
-		% NBREL - The number of waypoints the WAYPOINTS object consists of.
-		nbrel
 	end%properties
 	
 	
@@ -260,7 +257,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 		end%fcn
 		
 		function obj = changeSignOfCurvature(obj)
-		% CHANGESIGNOFCURVATURE		Flip waypoints curvature sign.
+		%CHANGESIGNOFCURVATURE	Flip waypoints curvature sign.
 		%	OBJ = CHANGESIGNOFCURVATURE(OBJ) changes the curvature sign of
 		%	waypoints. Properties Y and HEAD are modified accordingly while
 		%	maintaining the initial point.
@@ -294,7 +291,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 		end%fcn
 		
 		function [obj,idx] = douglasPeuker(obj, eps)
-		% DOUGLASPEUKER		Ramer-Douglas-Peucker point reduction.
+		%DOUGLASPEUKER	Ramer-Douglas-Peucker point reduction.
 		%	OBJR = DOUGLASPEUKER(OBJ,EPS) applies the Ramer-Douglas-Peuker
 		%	point reduction algorithm with parameter EPS. None of the
 		%	removed waypoints has a distance greater EPS to the resulting
@@ -309,13 +306,12 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 		%	See also GETSAMPLES.
 			
 			% Initialize a logical array indicating which waypoints to keep
-			N = obj.nbrel;
+			N = numwp(obj);
 			keepIdx = true(1, N);
 			
 			% Recursively set indexes of waypoints that can be discarded to
 			% false
-			dprec(1, obj.nbrel);
-			
+			dprec(1, N);
 			
 			function dprec(idx0, idx1)
 				d = perpendicularDistance(obj.getSamples(idx0:idx1));
@@ -490,7 +486,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 		end%fcn
 		
 		function obj = getSamples(obj, idx)
-		% GETSAMPLES	Select subset of waypoints.
+		%GETSAMPLES		Select subset of waypoints.
 		%	OBJ = GETSAMPLES(OBJ,IDX) selects a subset of WAYPOINTS object
 		%	OBJ specified by indices IDX.
 		%	
@@ -507,10 +503,10 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 					'Type help WAYPOINTS/getSamples.']);
 			end%if
 			
-			if max(idx) > obj.nbrel
+			if max(idx) > numwp(obj)
 				error('WAYPOINTS:getSamples',...
 					'Max. index (%d) exceeds number of waypoints(%d).',...
-					max(idx), obj.nbrel);
+					max(idx), numwp(obj));
 			end%if
 			
 			if any(diff(idx) < 0)
@@ -535,7 +531,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 		%UNTITLED Summary of this function goes here
 		%   Detailed explanation goes here
 		
-			N = OBJ.nbrel;
+			N = numwp(OBJ);
 			dist = NaN(N, numel(obj));
 
 			for i = 1:numel(obj)
@@ -552,8 +548,14 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 			
 		end%fcn
 		
+		function N = numwp(obj)
+		%NUMWP	Number of waypoints.
+		%	N = NUMWP(OBJ) returns the number N of waypoints of object OBJ. 
+			N = numel(obj.x);
+		end%fcn
+		
 		function d = perpendicularDistance(obj, P1, P2, doPlot, indPlot)
-		% PERPENDICULARDISTANCE
+		%PERPENDICULARDISTANCE	Perpendicular distance to line.
 		%	D = PERPENDICULARDISTANCE(OBJ,P1,P2) calculate the
 		%	perpendicular distance D for all waypoints of OBJ to the line
 		%	passing through P1 and P2.
@@ -565,7 +567,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 		%	the line from P1 to P2 is positive/negative.
 		%	
 		%	See also
-		%	https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line#Line_defined_by_two_points.
+		%	https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line#Line_defined_by_two_points
 			
 			% Handle input arguments
 			narginchk(1, 5)
@@ -602,11 +604,11 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 			%%% Visualization
 			if doPlot
 				if nargin < 5
-					indPlot = 1:obj.nbrel;
+					indPlot = 1:numwp(obj);
 				end%if
-				if max(indPlot) > obj.nbrel
-					warning('Plot indices limited to the number %d of waypoints!', obj.nbrel);
-					indPlot = indPlot(indPlot <= obj.nbrel);
+				if max(indPlot) > numwp(obj)
+					warning('Plot indices limited to the number %d of waypoints!', numwp(obj));
+					indPlot = indPlot(indPlot <= numwp(obj));
 				end%if
 				
 				% plot the waypoints
@@ -653,8 +655,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 		%	
 		%	Note that here plus (+) is a non-commutative operation!
 		
-			
-			if obj2.nbrel < 2
+			if numwp(obj2) < 2
 				obj = obj1;
 				return
 			end%if
@@ -686,7 +687,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 		%	See also INTERP1.
 			
 			% Check input data
-			if obj.nbrel < 2
+			if numwp(obj) < 2
 				error('Resampling requires at least two waypoints!');
 			end%if
 			
@@ -751,7 +752,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 		end%fcn
 		
 		function obj = reverse(obj)
-		% REVERSE	Reverse order of waypoints.
+		%REVERSE	Reverse order of waypoints.
 		%	OBJ = REVERSE(OBJ) reverses the direction of waypoints OBJ so
 		%	[x(end),y(end)] becomes [x(1),y(1)] and so on.
 		%	
@@ -778,7 +779,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 		end%fcn
 		
 		function obj = rotate(obj, phi)
-		% ROTATE	Rotate WAYPOINTS object.
+		%ROTATE		Rotate WAYPOINTS object.
 		%	OBJ = ROTATE(OBJ,PHI) rotates OBJ by an angle PHI in radians
 		%	around the origin.
 		% 
@@ -826,7 +827,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 		end%fcn
 		
 		function obj = setStartIndex(obj,idx)
-		% SETSTARTINDEX		Reorder waypoints.
+		%SETSTARTINDEX	Set waypoint as initial waypoint.
 		%	OBJ = SETSTARTINDEX(OBJ,INDX) reorders waypoints so that index
 		%	INDX becomes the inital waypoint.
 		%	
@@ -865,7 +866,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 		end%fcn
 		
 		function obj = shiftBy(obj, P)
-		% SHIFTBY	Shift waypoints by offset.
+		%SHIFTBY	Shift waypoints by offset.
 		%	OBJ = SHIFTBY(OBJ,P) shifts waypoints so that the initial point
 		%	is [OBJ.x(1)+P(1) OBJ.y(1)+P(2)].
 		% 
@@ -894,7 +895,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 		end%fcn
 		
 		function obj = shiftTo(obj, P)
-		% SHIFTTO	Shift waypoints to point.
+		%SHIFTTO	Shift waypoints to point.
 		%	OBJ = SHIFTTO(OBJ,P) shifts waypoints to new inital point P.
 		%	
 		%	OBJ = SHIFTTO(OBJ) applies the default value [0 0] for P.
@@ -904,7 +905,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 		%	positioning with respect to the first WAYPOINTS object!
 			
 			
-			% handle input arguments
+			% Handle input arguments
 			narginchk(1,2);
 			
 			if nargin < 2
@@ -934,8 +935,8 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 		end%fcn
 		
 		function obj = unwrap(obj)
-		% UNWRAP	Correct heading angle property PHI.
-		%	OBJ = UNWRAP(OBJ) applies UNWRAP(MOD(_,2*pi)) to property PHI.
+		%UNWRAP		Unwrap heading angle property HEAD.
+		%	OBJ = UNWRAP(OBJ) applies UNWRAP(MOD(_,2*pi)) to property HEAD.
 		%	
 		%	NOTE: This method supports array inputs OBJ!
 		% 
@@ -1020,7 +1021,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 		
 		function [out,latOff_LAD,angDev_LAD,curvat_LAD,isValid_LAD] = ...
 				laneTracking(obj,xyCG_global,yawAngle_global,LAD,mode)
-		% LANETRACKING  Calculate lane tracking pose.
+		%LANETRACKING	Calculate lane tracking pose.
 		%	
 		%	[~,LATOFF_LAD,ANGDEV_LAD,CURVAT_LAD,ISVALID_LAD] =
 		%	LANETRACKING(OBJ,XYCG_GLOBAL,YAWANGLE_GLOBAL,LAD) calculates
@@ -1147,7 +1148,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 			% calculation time, lateral offset and angular deviation are
 			% rarely affected.
 			m = 1;
-			[indl,indu] = obj.interpIndexRange(numIndCol,[1,obj.nbrel],m);
+			[indl,indu] = obj.interpIndexRange(numIndCol, [1,numwp(obj)], m);
 			
 			% preallocation of for-loop variable
 			lanePose_LAD_candidates = zeros(3,length(numIndCol));
@@ -1364,7 +1365,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 			
 			
 			% index numbering of number of elements of OBJ
-			indBase = 1:obj.nbrel;
+			indBase = 1:numwp(obj);
 			
 			
 			% get the segment-grouping indices and the number of indices
@@ -1446,8 +1447,8 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 		%	
 		%	See also WAYPOINTS/PLOTDIFF.
 			
-			n = obj.nbrel;
-			xx = (0:n-1)/n;
+			N = numwp(obj);
+			xx = (0:N-1)/N;
 			xLblString = 'index [1/index_{max}]';
 			
 			switch prop
@@ -1538,11 +1539,11 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 			yLimits = ylim;
 			
 			% Check if some tangent indexes are out of range
-			if any(ind > obj.nbrel)
+			if any(ind > numwp(obj))
 				warning('WAYPOINTS:plottangent:indxOutOfRange', ...
 					['Some indexes exceed the number N=%i of waypoints ', ...
-					'These tangents will not be plotted.'], obj.nbrel)
-				ind(ind > obj.nbrel) = [];
+					'These tangents will not be plotted.'], numwp(obj))
+				ind(ind > numwp(obj)) = [];
 			end%if
 			
 			% Plot the tangents and the corresponding waypoints
@@ -1864,7 +1865,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 				end%if
 				cellStr	= {...
 					sprintf('%s (N=%u;  s=%.2f)', ...
-					typeStr, obj.nbrel, obj.s(end)),...
+					typeStr, numwp(obj), obj.s(end)),...
 					sprintf(' (%.2g;%.2g) \\rightarrow (%.2g;%.2g)', ...
 					obj.x(1), obj.y(1), obj.x(end), obj.y(end)),...
 					};
@@ -1886,7 +1887,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 					% q .. slope
 					% wl/wr .. track width left/right [m]
 					% ml/mr .. margin width left/right [m]
-					N = obj.nbrel;
+					N = numwp(obj);
 					if nargin < 3
 						lw_left		= ones(N, 0);
 						lw_right	= ones(N, 0);
@@ -1948,10 +1949,6 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 		
 		function pos = get.termPoint(obj)
 			pos = [obj.x(end) obj.y(end)];
-		end%fcn
-		
-		function n = get.nbrel(obj)
-			n = numel(obj.x);
 		end%fcn
 		
 	end%methods
