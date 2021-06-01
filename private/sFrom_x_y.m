@@ -1,5 +1,5 @@
 function s = sFrom_x_y(x, y)
 
-s = [0, cumsum(sqrt(diff(x).^2 + diff(y).^2))];
+s = [0, cumsum(hypot(diff(x), diff(y)))];
 
 end%fcn

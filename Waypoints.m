@@ -1244,21 +1244,27 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 			end%if
 			
 			if isempty(ax) || any(~ishghandle(ax))
-				ax = [subplot(2, 2, [1,3]); subplot(2, 2, 2); ...
-					subplot(2, 2, 4)];
+				ax = [subplot(2, 2, [1,3]); subplot(2, 2, 2); subplot(2, 2, 4)];
 			elseif numel(ax) < 3
 				error('If specified, three axes handles are required!');
 			end%if
 			
-
-			h = gobjects(3, 1);
-			h(1) = plot(ax(1), obj, opts{:});
+			N = numel(obj);
+			h = gobjects(N,3);
+			h(:,1) = plot(ax(1), obj, opts{:});
+			npStatus = get(ax(2:3), 'NextPlot');
+			set(ax(2:3), 'NextPlot','replace');
+			for i = 1:N
+				if i == 2
+					set(ax(2:3), 'NextPlot','add');
+				end
+				h(i,2) = plot(ax(2), obj(i).s, obj(i).head, opts{:});
+				h(i,3) = plot(ax(3), obj(i).s, obj(i).curv, opts{:});
+			end%for
+			set(ax(2:3), {'NextPlot'},npStatus);
 			
-			h(2) = plot(ax(2), obj.s, obj.head, opts{:});
 			grid(ax(2), 'on');
 			ylabel(ax(2), 'Heading [rad]');
-			
-			h(3) = plot(ax(3), obj.s, obj.curv, opts{:});
 			grid(ax(3), 'on');
 			xlabel(ax(3), 'Length [m]');
 			ylabel(ax(3), 'Curvature [1/m]');
@@ -1302,7 +1308,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 			if nargin == 1
 				% Easy case: plot() was called with just a WAYPOINTS object
 				obj = varargin{1};
-				[h, ax] = plot_raw([], obj, opts{:});
+				[h,ax] = plot_raw([], obj, opts{:});
 				
 			elseif nargin > 1
 				% The first argument is either an axes handle or a WAYPOINTS
@@ -1318,7 +1324,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 					obj = varargin{1};
 					opts = varargin(2:end);
 				end%if
-				[h, ax] = plot_raw(ax, obj, opts{:});
+				[h,ax] = plot_raw(ax, obj, opts{:});
 				
 			end%if
 			
@@ -1774,7 +1780,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 			end%for
 			
 			if numel(obj) > 1
-				legend('show', 'Location','best');
+				legend(axh, 'show', 'Location','best');
 			end%if
 			
 			% Reset axes to initial state
@@ -2217,6 +2223,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 			p.FunctionName = 'll2Waypoints';
 			addParameter(p, 'head', [], @isnumeric);
 			addParameter(p, 'curv', [], @isnumeric);
+			addParameter(p, 'Name', [], @ischar);
 			parse(p, varargin{:});
 			
 			% Convert from lat/lon to UTM
@@ -2237,26 +2244,34 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 			
 			% Create WAYPOINTS object
 			obj = Waypoints(x, y, s, curv, head);
+			obj.Name = p.Results.Name;
 			
 		end%fcn
 		
-		function obj = pp2Waypoints(t, ppx, ppy, mode)
+		function obj = pp2Waypoints(t, pp, mode)
 		% PP2WAYPOINTS	Convert piecewise polynomial structure to WAYPOINTS. 
-		%   OBJ = PP2WAYPOINTS(T,PPX,PPY) creates the instace OBJ of class
-		%   WAYPOINTS from piecewise polynomial structures PPX and PPY sampled
-		%   at T. 
+		%   OBJ = PP2WAYPOINTS(T,PP) creates WAYPOINTS instace OBJ from
+		%   piecewise polynomial structures PP sampled at T.
 		% 
-		%	See also SPLINE.
+		%	OBJ = PP2WAYPOINTS(T,PP,MODE) setting MODE='numint' length S is
+		%	calculated via numerical integration. Default value is
+		%	'cumsum'.
+		%	
+		%	See also SPLINE, MKPP, UNMKPP.
 			
-			narginchk(2, 4);
+			narginchk(2, 3);
 			
-			if nargin < 4
-				mode = 'int';
+			if nargin < 3
+				mode = 'cumsum';
 			end%if
 			
 			% Get dimension via UNMKPP to check for valid piecewise
 			% polynomial struct.
-			[~,~,~,~,dimX] = unmkpp(ppx);
+			[~,~,~,~,ppDim] = unmkpp(pp);
+			% PP needs to return a 2-D array (x and y).
+			if ppDim ~= 2
+				error('Piecewise polynomial PP must have a dimension of 2!');
+			end%if
 			
 			% Make sure T is a row vector. As a result, PPVAL will return a
 			% matrix whose number of columns matches the number of elements
@@ -2265,54 +2280,30 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 				error('Query point must be a row vector!');
 			end%if
 			
-			
-			if (nargin < 3) || isempty(ppy)
-				% In the case of a two-argument call, PPX needs to return a
-				% 2-D array (x and y).
-				if dimX ~= 2
-					error('Piecewise polynomial struct must have a dimensionality of 2!');
-				end%if
-				
-				% Evaluate piecewise polynomial structs
-				xy	 = ppval(ppx, t);
-				d1xy = ppval(ppdiff(ppx,1), t);
-				d2xy = ppval(ppdiff(ppx,2), t);
-				
-				% Function handle for path length integration
-				ppdx = ppdiff(ppx);
-				fun = @(t) sqrt(sum(ppval(ppdx, t).^2, 1));
-				
-			else
-				% In the case of a three-argument call, both piecewise
-				% polynomial structs must return a 1-D array.
-				[~,~,~,~,dimY] = unmkpp(ppy);
-				if (dimX > 1) || (dimY > 1)
-					error('Piecewise polynomial structs must have a dimensionality of 1!');
-				end%if
-				
-				% Evaluate piecewise polynomial structs
-				xy	 = [ppval(ppx, t); ppval(ppy, t)];
-				d1xy = [ppval(ppdiff(ppx,1), t); ppval(ppdiff(ppy,1), t)];
-				d2xy = [ppval(ppdiff(ppx,2), t); ppval(ppdiff(ppy,2), t)];
-				
-				% Function handle for path length integration
-				ppdx = ppdiff(ppx);
-				ppdy = ppdiff(ppy);
-				fun = @(t) sqrt(ppval(ppdx, t).^2 + ppval(ppdy, t).^2);
-				
-			end%if
+			% Evaluate piecewise polynomial structs
+			ppd1 = ppdiff(pp, 1);
+			ppd2 = ppdiff(ppd1, 1);
+			xy	 = ppval(pp, t);
+			d1xy = ppval(ppd1, t);
+			d2xy = ppval(ppd2, t);
+
+			% Function handle for path length integration
+			fun = @(t) sqrt(sum(ppval(ppd1, t).^2, 1));
 			
 			switch mode
 				case 'cumsum'
-					s = [0, cumsum(sqrt( sum(diff(xy,1,2).^2, 1) ))];
+					s = sFrom_x_y(xy(1,:), xy(2,:));
 					
-				otherwise
+				case 'numint'
 					% Numerical integration of path length
 					s = zeros(1, numel(t));
 					for i = 1:numel(t)-1
 						s(i+1) = integral(@(t) fun(t), t(i), t(i+1));
 					end%for
 					s = cumsum(s);
+					
+				otherwise
+					error('Unknown mode!')
 			end%%switch
 			
 			head = unwrap(atan2(d1xy(2,:), d1xy(1,:)));
@@ -2374,7 +2365,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 			obj = Waypoints(x(~isNan), y(~isNan), s, curv, head, -1, 1);
 			
 		end%fcn
-
+		
 	end%methods
 	
 end%class
