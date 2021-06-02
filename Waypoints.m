@@ -91,7 +91,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 
 	properties (Constant, Hidden)
 		% Curvature types
-		curvTypes = {'waypoints','straight','circle','clothoid','sine'};
+		CurvTypes = {'waypoints','straight','circle','clothoid','sine'};
 	end%properties
 	
 	properties
@@ -741,10 +741,10 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 			PHI = interp1(t, obj.Head, tq, method);
 			
 			% Resample curvature type
-			TYPE = resample_on_s(obj, 'type', S);
+			TYPE = resample_on_s(obj, 'Type', S);
 			
 			% Resample segment number
-			NBR	= resample_on_s(obj, 'nbr', S);
+			NBR	= resample_on_s(obj, 'Nbr', S);
 			
 			% Create the resampled WAYPOINTS object
 			obj = Waypoints(XY(1,:), XY(2,:), S, K, PHI, TYPE, NBR);
@@ -986,7 +986,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 			end%if
 			
 			% Open file
-			fid = Waypoints.openFileWithExt(fn);
+			fid = openFileWithExt(fn);
 			
 			switch format
 				case 'raw'
@@ -1148,7 +1148,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 			% calculation time, lateral offset and angular deviation are
 			% rarely affected.
 			m = 1;
-			[indl,indu] = obj.interpIndexRange(numIndCol, [1,numwp(obj)], m);
+			[indl,indu] = interpIndexRange(numIndCol, [1,numwp(obj)], m);
 			
 			% preallocation of for-loop variable
 			lanePose_LAD_candidates = zeros(3,length(numIndCol));
@@ -1561,7 +1561,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 				h(i+1,1) = plot(obj.x(iind), obj.y(iind), opts_marker{:}, opts{:});
 				
 				% Length of tangent
-				[r1,r2] = obj.scaleTangentToAxis(xLimits, yLimits, ...
+				[r1,r2] = scaleTangentToAxis(xLimits, yLimits, ...
 					[obj.x(iind) obj.y(iind)], obj.Head(iind));
 				
 				% Start/end point of tangent
@@ -1883,7 +1883,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 		function write2file_CarMaker(fn, obj, varargin)
 			
 			% open file
-			[fid, fileExt] = Waypoints.openFileWithExt(fn);
+			[fid, fileExt] = openFileWithExt(fn);
 			
 			switch fileExt
 				case '.csv'
