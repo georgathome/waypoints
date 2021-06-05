@@ -266,7 +266,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 		
 			for i = 1:numel(obj)
 				% Get starting point/angle
-				P0 = [obj(i).x(1); obj(i).y(1)];
+				P0 = obj(i).InitPoint;
 				phi0 = obj(i).Head(1);
 			
 				% Shift to origin and rotate so initial slope is zero
@@ -391,7 +391,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 			dx = xsub(end) - xsub(1);
 			dy = yfit(end) - yfit(1);
 			straight = Waypoints(xsub, yfit, ...
-				[0, cumsum(sqrt(diff(xsub).^2 + diff(yfit).^2))], ...
+				sFrom_x_y(xsub, yfit), ...
 				zeros(1, numel(xsub)), ...
 				atan2(dy, dx)*ones(1, numel(xsub)), 0, 1);
 			
