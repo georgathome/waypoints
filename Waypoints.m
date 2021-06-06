@@ -19,8 +19,8 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 %	 X		- x-coordinate [m].
 %	 Y		- y-coordinate [m].
 %	 S		- Length parameter, strictly increasing.
-%	 CURV	- Curvature [1/m].
 %	 HEAD	- Heading angle [rad].
+%	 CURV	- Curvature [1/m].
 %	 TYPE	- Integer indicating the waypoint type.
 %	 NBR	- Segment number of joined WAYPOINTS.
 %	 INITPOINT - Initial point [x(1) y(1)].
@@ -91,7 +91,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 
 	properties (Constant, Hidden)
 		% Curvature types
-		curvTypes = {'waypoints','straight','circle','clothoid','sine'};
+		CurvTypes = {'waypoints','straight','circle','clothoid','sine'};
 	end%properties
 	
 	properties
@@ -100,23 +100,29 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 	end%properties
 	
 	properties (SetAccess = private)
-		% X - 1-by-n double of X-coordinates [m].
+		% X - X-coordinates [m].
+		%	n-by-1
 		x = [0; 1];
 		
-		% Y - 1-by-n double of Y-coordinates [m].
+		% Y - Y-coordinates [m].
+		%	n-by-1
 		y = [0; 0];
 		
-		% S - 1-by-n double of lengths [m].
+		% S - Cumulative length of consecutive waypoints [m].
+		%	n-by-1
 		s = [0; 1];
 		
-		% CURV - 1-by-n double of curvatures [1/m].
-		Curv = [0; 0];
-		
-		% HEAD - 1-by-n double of heading angles [rad].
-		%	 Measured from the positive x-axis to the waypoint's tangent.
+		% HEAD - Waypoint heading angle [rad].
+		%	n-by-1
+		%	Measured from the positive x-axis to the waypoint's tangent.
 		Head = [0; 0];
 		
-		% TYPE - 1-by-n int8 of curvature types [-]:
+		% CURV - Waypoint curvature [1/m].
+		%	n-by-1
+		Curv = [0; 0];
+		
+		% TYPE - Curvature types [-]:
+		%	n-by-1 int8
 		%	-1 .. unknown/undefined
 		%	 0 .. straight
 		%	 1 .. circular
@@ -124,7 +130,8 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 		Type = zeros(2, 1, 'int8');
 		% See also WAYPOINTS/CURVTYPES
 		
-		% NBR - 1-by-n uint16 of segment number [-].
+		% NBR - Number of waypoint segment.
+		%	n-by-1 uint16
 		%	When appending multiple WAYPOINTS objects to one single
 		%	WAYPOINTS object, this property allows to distinguish them in
 		%	the single object.
@@ -266,7 +273,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 		
 			for i = 1:numel(obj)
 				% Get starting point/angle
-				P0 = [obj(i).x(1); obj(i).y(1)];
+				P0 = obj(i).InitPoint;
 				phi0 = obj(i).Head(1);
 			
 				% Shift to origin and rotate so initial slope is zero
@@ -361,7 +368,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 			% Handle input arguments
 			if (nargin < 2) || isempty(indMinMax)
 				indMin = 1;
-				indMax = obj.numwp;
+				indMax = numwp(obj);
 			else
 				indMin = indMinMax(1);
 				indMax = indMinMax(2);
@@ -435,7 +442,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 			% Handle input arguments
 			if nargin < 3 || isempty(indMinMax)
 				indMin = 1;
-				indMax = obj.numwp;
+				indMax = numwp(obj);
 			else
 				indMin = indMinMax(1);
 				indMax = indMinMax(2);
@@ -535,7 +542,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 		
 			N = numwp(OBJ);
 			dist = NaN(N, numel(obj));
-
+			
 			for i = 1:numel(obj)
 				for n = 1:N
 					[~,latOff_LAD] = laneTracking(obj(i), ...
@@ -772,13 +779,13 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 				nbrS = double(obj(i).Nbr);
 				
 				obj(i) = Waypoints(...
-					+fliplr(obj(i).x),...
-					+fliplr(obj(i).y),...
-					-fliplr(obj(i).s) + obj(i).s(end),... % in case of non-equally distributed x/y
-					-fliplr(obj(i).Curv),...
-					+fliplr(obj(i).Head) + pi,... 
-					+fliplr(obj(i).Type),...
-				-fliplr(nbrS) + nbrS(end) + 1); 
+					+flip(obj(i).x),...
+					+flip(obj(i).y),...
+					-flip(obj(i).s) + obj(i).s(end),... % in case of non-equally distributed x/y
+					-flip(obj(i).Curv),...
+					+flip(obj(i).Head) + pi,... 
+					+flip(obj(i).Type),...
+					-flip(nbrS) + nbrS(end) + 1); 
 			end%for
 			
 		end%fcn
@@ -817,11 +824,11 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 			
 			for i = 1:numel(obj)
 				% much faster than rotMat*[obj.x;obj.y]
-				xy_new = [obj(i).x' obj(i).y']*rotMat';
-
+				xy_new = [obj(i).x, obj(i).y]*rotMat';
+				
 				obj(i) = Waypoints(...
-					xy_new(:, 1)', ...
-					xy_new(:, 2)', ...
+					xy_new(:, 1), ...
+					xy_new(:, 2), ...
 					obj(i).s, ...
 					obj(i).Curv, ...
 					obj(i).Head + phi, ...
@@ -860,13 +867,13 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 			% Make sure that property NBR is monotonically increasing and
 			% starts at 1
 			obj = Waypoints(...
-				[obj.x(idx:end),	obj.x(1:idx-1)],...
-				[obj.y(idx:end),	obj.y(1:idx-1)],...
+				[obj.x(idx:end);	obj.x(1:idx-1)],...
+				[obj.y(idx:end);	obj.y(1:idx-1)],...
 				s_new,...
-				[obj.Curv(idx:end),	obj.Curv(1:idx-1)],...
-				[obj.Head(idx:end),	obj.Head(1:idx-1)],...
-				[obj.Type(idx:end), obj.Type(1:idx-1)],...
-				[obj.Nbr(idx:end),	obj.Nbr(1:idx-1) + obj.Nbr(end)] - obj.Nbr(idx) + 1);
+				[obj.Curv(idx:end);	obj.Curv(1:idx-1)],...
+				[obj.Head(idx:end);	obj.Head(1:idx-1)],...
+				[obj.Type(idx:end); obj.Type(1:idx-1)],...
+				[obj.Nbr(idx:end);	obj.Nbr(1:idx-1) + obj.Nbr(end)] - obj.Nbr(idx) + 1);
 			
 		end%fcn
 		
@@ -875,10 +882,11 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 		%	OBJ = SHIFTBY(OBJ,P) shifts waypoints so that the initial point
 		%	is [OBJ.x(1)+P(1) OBJ.y(1)+P(2)].
 		% 
-		%	NOTE: If OBJ is an array, P is applied to all array elements!
+		%	NOTE: If OBJ is an array of WAYPOINTS, P is applied to all
+		%	array elements!
 			
 			% Handle input arguments
-			narginchk(2,2);
+			narginchk(2, 2);
 			
 			if numel(P) ~= 2 || ~isnumeric(P)
 				error(['Method SHIFTBY requires a numeric input',...
@@ -911,7 +919,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 			
 			
 			% Handle input arguments
-			narginchk(1,2);
+			narginchk(1, 2);
 			
 			if nargin < 2
 				P = [0 0];
@@ -991,7 +999,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 			end%if
 			
 			% Open file
-			fid = Waypoints.openFileWithExt(fn);
+			fid = openFileWithExt(fn);
 			
 			switch format
 				case 'raw'
@@ -1053,8 +1061,9 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 				mode = 0;
 			end%if
 			
-			% ensure row format
+			% ensure row/column format
 			LAD = LAD(:)';
+			xyCG_global = xyCG_global(:);
 			
 			%%% shift origin to vehicles CG/rotate so vehicle is oriented
 			%%% along global x-axis
@@ -1088,8 +1097,8 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 			% x-coordinate
 			%  rows: LAD 
 			%  columns: waypoint x-coordinates
-			logIndx1 = bsxfun(@le, xyLAD_T(1,:)' - deltaX_max/2, obj_T.x);
-			logIndx2 = bsxfun(@ge, xyLAD_T(1,:)' + deltaX_max/2, obj_T.x);
+			logIndx1 = bsxfun(@le, xyLAD_T(1,:)' - deltaX_max/2, obj_T.x');
+			logIndx2 = bsxfun(@ge, xyLAD_T(1,:)' + deltaX_max/2, obj_T.x');
 			logIndx = logIndx1 & logIndx2;
 			
 			% error if no element of LOGINDX is true
@@ -1153,7 +1162,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 			% calculation time, lateral offset and angular deviation are
 			% rarely affected.
 			m = 1;
-			[indl,indu] = obj.interpIndexRange(numIndCol, [1,numwp(obj)], m);
+			[indl,indu] = interpIndexRange(numIndCol, [1,numwp(obj)], m);
 			
 			% preallocation of for-loop variable
 			lanePose_LAD_candidates = zeros(3,length(numIndCol));
@@ -1163,13 +1172,14 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 					% same result like interp1(..,'spline') but faster
 					lanePose_LAD_candidates(:,i) = spline(...
 						obj_T.x(indl(i):indu(i)),...
-						[obj_T.y(indl(i):indu(i));...
-						 obj_T.Head(indl(i):indu(i));...
+						[obj_T.y(indl(i):indu(i)),...
+						 obj_T.Head(indl(i):indu(i)),...
 						 obj_T.Curv(indl(i):indu(i))],...
 						xyLAD_T(1, numIndRow(i)));
 				end%for
 			catch exception
-				plotLaneTracking(obj,xyCG_global,yawAngle_global,LAD,numIndCol,obj_T,xyCG_T);
+				plotLaneTracking(obj, xyCG_global, yawAngle_global, ...
+					LAD, numIndCol, obj_T, xyCG_T);
 				error(exception.message);
 			end%try
 			latOff_LAD_candidates = lanePose_LAD_candidates(1,:);
@@ -1415,7 +1425,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 				if i == 2
 					hold on
 				end
-				h(i) = plot_raw([], sd,...
+				h(i) = plot_raw([], sd,... % TODO: pass axes handle?
 					'LineStyle','none',...
 					'Color',	colorStyles{sd.Type(1)+2},...
 					'Marker',	plotMarker_{1,i},...
@@ -1462,7 +1472,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 			xx = (0:N-1)/N;
 			xLblString = 'index [1/index_{max}]';
 			
-			switch prop
+			switch lower(prop)
 				case 'curv'
 					yy = obj.Curv;
 					yLblString = 'curvature [1/m]';
@@ -1566,7 +1576,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 				h(i+1,1) = plot(obj.x(iind), obj.y(iind), opts_marker{:}, opts{:});
 				
 				% Length of tangent
-				[r1,r2] = obj.scaleTangentToAxis(xLimits, yLimits, ...
+				[r1,r2] = scaleTangentToAxis(xLimits, yLimits, ...
 					[obj.x(iind) obj.y(iind)], obj.Head(iind));
 				
 				% Start/end point of tangent
@@ -1717,7 +1727,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 				
 				%%% start plotting
 				% Solltrajektorie (transformiert)
-				h_V = plottangent(sd_T,indx,'k');
+				h_V = plottangent(sd_T,indx, 'Color','k');
 				set(h_V(1),...
 					'Color','g',...
 					'LineStyle','none',...
@@ -1888,7 +1898,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 		function write2file_CarMaker(fn, obj, varargin)
 			
 			% open file
-			[fid, fileExt] = Waypoints.openFileWithExt(fn);
+			[fid, fileExt] = openFileWithExt(fn);
 			
 			switch fileExt
 				case '.csv'
@@ -1921,7 +1931,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 					fprintf(fid,'#\n# Add your comments here!\n#\n#\n');
 					fprintf(fid,'#	x	y	z	q	wl	wr	ml	mr\n');
 					dlmwrite(fn,...
-						[obj.x(:), obj.y(:), zeros(N,1), zeros(N,1), ...
+						[obj.x, obj.y, zeros(N,1), zeros(N,1), ...
 						lw_left, lw_right, mw_left, mw_right],...
 						'-append', ...
 						'delimiter','	', ...
@@ -1955,11 +1965,11 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 	methods
 		
 		function pos = get.InitPoint(obj)
-			pos = [obj.x(1) obj.y(1)];
+			pos = [obj.x(1); obj.y(1)];
 		end%fcn
 		
 		function pos = get.TermPoint(obj)
-			pos = [obj.x(end) obj.y(end)];
+			pos = [obj.x(end); obj.y(end)];
 		end%fcn
 		
 	end%methods
@@ -1971,7 +1981,8 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 		function obj = set.s(obj, value)
 			% The length can not decrease from one to following point
 			if any(diff(value) < 0)
-				error('Property S must be monotonically increasing!')
+				error('WAYPOINTS:DecreasingS', ...
+					'Property S must be monotonically increasing!')
 			end%if
 			
 			obj.s = value;
@@ -2022,212 +2033,19 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 	%%% Static-Methods
 	methods (Static)
 		
-		function [r1,r2] = scaleTangentToAxis(xLimits,yLimits,xy,phi)
-		%SCALETANGENTTOAXIS		Scale length of tangent to axis limits.
-		%   [R1,R2] = SCALETANGENTTOAXIS(XLIMITS,YLIMITS,XY,PHI) calculates
-		%   the lengths R1 and R2 for the tangent at point XY with angle
-		%   PHI, so that the tangent does not exceed given limits XLIMITS =
-		%   [xMin xMax] and YLIMITS = [yMin yMax].
-		%	Length R1 counts in the direction of PHI, whereas R2 counts in
-		%	the opposite direction.
-		%
-		%	The intended usage is for plotting something like tangents in
-		%	existing plot figures maintaining the current axis limits.
-			
-			
-			% assign inputs to meaningful variables
-			xMin = xLimits(1);
-			xMax = xLimits(2);
-			yMin = yLimits(1);
-			yMax = yLimits(2);
-			xT = xy(1);
-			yT = xy(2);
-			
-			
-			%%% map phi to [-pi,+pi) (plus/minus pi)
-			if phi >= pi
-				phi_pmPi = phi - 2*pi;
-			else
-				phi_pmPi = phi;
-			end%if
-			
-			
-			%%% reduce problem to angles of [-pi/2,+pi/2]
-			if phi_pmPi <= pi/2 && phi_pmPi >= -pi/2
-				% keep the original value
-				phi_pmPi_ = phi_pmPi;
-				isPhiReversed = false;
-			else
-				% consider the opposite direction of phi which is whithin
-				% [-pi/2,+pi/2]
-				phi_pmPi_ = mod(phi_pmPi - pi,pi); % ??? consider the sign of x in y for mod(x,y)
-				isPhiReversed = true;
-			end%if
-			
-			
-			%%% calculate the equation of a line at [xT yT] for phi
-			% y(xT) = yT -> k*xT + d = yT -> d = yT - k*xT
-			k1 = tan(phi_pmPi_); % tangents slope
-			d = yT - k1*xT; % tangents offset
-			y_x = @(x) k1*x + d; % tangents equation of a line
-			
-			
-			%%% calculate the plot-range [xL,xR] depending on the sign of
-			%%% the tangents slope
-			if k1 >= 0
-				
-				if y_x(xMax) <= yMax
-					xR = xMax;
-				else
-					xR = (yMax-d)/k1;
-				end%if
-				
-				if y_x(xMin) >= yMin
-					xL = xMin;
-				else
-					xL = (yMin-d)/k1;
-				end%if
-				
-			else
-				
-				if y_x(xMax) >= yMin
-					xR = xMax;
-				else
-					xR = (yMin-d)/k1;
-				end%if
-				
-				if y_x(xMin) <= yMax
-					xL = xMin;
-				else
-					xL = (yMax-d)/k1;
-				end%if
-				
-			end%if
-			
-			
-			%%% calculate the tangent lengths
-			r1 = +sqrt((xR-xT)^2 + (y_x(xR)-y_x(xT))^2);
-			r2 = -sqrt((xL-xT)^2 + (y_x(xL)-y_x(xT))^2);
-			
-			% fix tangent lengths if the slope is +-inf
-			if phi_pmPi_ == +pi/2
-				r1 = yMax - yT;
-				r2 = yMin - yT;
-			elseif phi_pmPi == -pi/2
-				r1 = -(yMin - yT);
-				r2 = -(yMax - yT);
-			end%if
-			
-			
-			%%% switch R1/R2 and their signs if the opposite problem was
-			%%% considered
-			if isPhiReversed
-				dummy = r1;
-				r1 = -r2;
-				r2 = -dummy;
-			end%if
-			
-		end%fcn
-		
-		function [indl,indu,ind] = interpIndexRange(ind,indMinMax,m)
-		%INTERPINDEXRANGE	Index range for interpolation.
-		%	[INDL,INDU] = INTERPINDEXRANGE(IND,INDMINMAX,M) returns the
-		%	lower and upper indices INDL and INDU within index boundaries
-		%	[INDMINMAX(1) INDMINMAX(2)] using an index difference M for
-		%	given indices IND.
-		%	
-		%	Indices INDL/INDU define the range of interpolation, basically
-		%	IND-M and IND+M but ensure INDL > INDMINMAX(1) and INDU <
-		%	INDMINMAX(2).
-		
-		
-			%%% handle input arguments
-			% input IND
-			if  ~isvector(ind) % check size
-				error('Size of IND must be vector!');
-			else
-				ind = ind(:); % ensure column orientation
-			end%if
-			
-			% input INDMINMAX
-			if any(size(indMinMax) ~= [1 2]) % check size
-				error('Size of INDMINMAX must be 1-by-2!');
-			else
-				indMin = indMinMax(1);
-				indMax = indMinMax(2);
-			end%if
-			
-			% input M
-			if nargin < 3 % apply default value if undefined
-				m = 1;
-			elseif ~isscalar(m) % check isze
-				error('Size of M must be scalar!');
-			elseif m < 1 % check value
-				error('Value of m must be > 0!');
-			end%if
-			
-			
-			%%% check input arguments plausibility
-			if any(ind<indMin | ind>indMax)
-				error('laneTracking:interpIndexRange:IndexOutOfBounds',...
-					'One or more indexes out of range [%i,%i].',indMin,indMax);
-			end%if
-			if indMax-indMin < 2*m
-				error('laneTracking:interpIndexRange:IntervalExtOutOfRange',...
-					'Index difference M=%i does not fit into given range [%i,%i].',...
-					2*m,indMin,indMax);
-			end%if
-			
-			
-			%%% calculate interpolating indexes
-			% lower/upper interpolating-index unbounded
-			indl = ind-m;
-			indu = ind+m;
-			
-			% bounded to INDMINMAX
-			indLU = bsxfun(@plus,[indl,indu],...
-				max(zeros(size(ind)),indMinMax(:,1)-indl) + ...
-				min(zeros(size(ind)),indMinMax(:,2)-indu));
-			indl = indLU(:,1);
-			indu = indLU(:,2);
-			
-		end%fcn
-		
-		function [fid,fileExt] = openFileWithExt(fn, fExt_set)
-			
-			[~,fileName,fileExt] = fileparts(fn);
-			
-			if nargin > 1
-				if isempty(fileExt)
-					warning('WAYPOINTS:write2file:fileExtension',...
-						'Adding file extension ''%s'' to file name!',...
-						fExt_set);
-				elseif ~strcmp(fileExt, fExt_set)
-					warning('WAYPOINTS:write2file:fileExtension',...
-						'Replacing file extension ''%s'' by ''%s''!',...
-						fileExt, fExt_set);
-				end%if
-				fn = [fileName, fExt_set];
-			end%if
-			
-			% open file with write-permission
-			fid = fopen(fn,'w');
-				
-		end%fcn
-		
 		function obj = ll2Waypoints(lat, lon, varargin)%#codegen
 		%LL2WAYPOINTS	Convert LAT/LON coordinates to WAYPOINTS.
 		%	OBJ = LL2WAYPOINTS(LAT,LON)
 			
-			% LAT/LON are required, accept two optional name-value pair
+			% LAT/LON are required, accept 3 optional name-value pair
 			% arguments
 			narginchk(2, 6);
 			
 			% Parse name-value pair arguments
 			p = inputParser;
 			p.FunctionName = 'll2Waypoints';
-			addParameter(p, 'head', [], @isnumeric);
-			addParameter(p, 'curv', [], @isnumeric);
+			addParameter(p, 'Head', [], @isnumeric);
+			addParameter(p, 'Curv', [], @isnumeric);
 			addParameter(p, 'Name', [], @ischar);
 			parse(p, varargin{:});
 			
@@ -2238,13 +2056,13 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 			if isempty(p.Results.Head)
 				head = curvHeadFrom_x_y(x, y);
 			else
-				head = p.Results.Head(:)';
+				head = p.Results.Head;
 			end%if
 			
 			if isempty(p.Results.Curv)
 				curv = curvFrom_head_s(head, s);
 			else
-				curv = p.Results.Curv(:)';
+				curv = p.Results.Curv;
 			end%if
 			
 			% Create WAYPOINTS object
@@ -2288,6 +2106,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 			% Evaluate piecewise polynomial structs
 			ppd1 = ppdiff(pp, 1);
 			ppd2 = ppdiff(ppd1, 1);
+			% PPVAL returns an array of size DIM-by-numel(T)
 			xy	 = ppval(pp, t);
 			d1xy = ppval(ppd1, t);
 			d2xy = ppval(ppd2, t);
@@ -2297,11 +2116,11 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 			
 			switch mode
 				case 'cumsum'
-					s = sFrom_x_y(xy(1,:), xy(2,:));
+					s = sFrom_x_y(xy(1,:)', xy(2,:)');
 					
 				case 'numint'
 					% Numerical integration of path length
-					s = zeros(1, numel(t));
+					s = zeros(numel(t), 1);
 					for i = 1:numel(t)-1
 						s(i+1) = integral(@(t) fun(t), t(i), t(i+1));
 					end%for
@@ -2315,7 +2134,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 			curv = (d1xy(1,:).*d2xy(2,:) - d2xy(1,:).*d1xy(2,:)) ./ ...
 					sum(d1xy.^2, 1).^(3/2);
 			
-			obj = Waypoints(xy(1,:), xy(2,:), s, curv, head);
+			obj = Waypoints(xy(1,:)', xy(2,:)', s, curv', head');
 			
 		end%fcn
 		
@@ -2339,7 +2158,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 			%%% Handle input arguments
 			if nargin < 2
 				if size(x, 2) ~= 2
-					error('When using one argument syntax, array must have 2 rows!');
+					error('When using one argument syntax, input must have 2 columns!');
 				else
 					y = x(:,2);
 					x = x(:,1);
