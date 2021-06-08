@@ -168,63 +168,50 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 			%%% (1) Check input argument sizes
 			% Properties X, Y, S, HEAD and CURV are required to have the
 			% same size
-			sz = size(x);
-			if (sz(1) < 1) || (sz(2) ~= 1)
-				error('WAYPOINTS:Waypoints:nonemptyRowVectors',...
-					'Inputs have to be non-empty column vectors!')
-			end%if
-			if ~isequal(sz, size(y), size(s), size(head), size(curv))
-				error('WAYPOINTS:Waypoints:unequalInputArgumentSizes',...
-					'Inputs must have the same size.')
-			end%if
+			Nx = numel(x);
+			assert(isequal(Nx, numel(y), numel(s), numel(head), numel(curv)), ...
+				'WAYPOINTS:Waypoints:numelInputs',...
+				'Input arrays must have the same number of elements!');
 			
 			% Before we can check the size of optional input arguments TYPE
 			% and NBR, we must ensure they are defined
 			if nargin < 7
-				nbr = ones(sz, 'uint16');
+				Nbr = ones(Nx, 1, 'uint16');
+			elseif isscalar(nbr)
+				% Explicit array size syntax for compatibility in MATLAB
+				% Function blocks within Simulink.
+				Nbr = nbr(1) * ones(Nx, 1, class(nbr));
+			else
+				Nbr = nbr;
 			end%if
 			if nargin < 6
-				type = -ones(sz, 'int8');
-			end%if			
+				Type = -ones(Nx, 1, 'int8');
+			elseif isscalar(type)
+				Type = type(1) * ones(Nx, 1, class(type));
+			else
+				Type = type;
+			end%if
 			
-			if ~isscalar(type) && ~isequal(sz, size(type))
-				error('Property TYPE must be scalar or of size 1-by-%u', sz(2))
-			end%if
-			if ~isscalar(nbr) && ~isequal(sz, size(nbr))
-				error('Property NBR must be scalar or of size 1-by-%u', sz(2))
-			end%if
+			assert(isequal(numel(x), numel(Nbr), numel(Type)), ...
+				'WAYPOINTS:Waypoints:numelTypeNbrInputs',...
+				'Size mismatch for input TYPE and/or NBR!');
 			
 			
 			%%% (2) Check for NaN's in waypoints
-			isNan = or(isnan(x), isnan(y));
-			if any(isNan)
-				fprintf(['Warning: NaN''s were found in waypoints; ', ...
-					'those samples were removed!\n']);
-				
-				% Update expected size of properties X, ..., CURV
-				sz = [nnz(~isNan), 1];
+			isNotNan = ~or(isnan(x), isnan(y));
+			if any(~isNotNan)
+				fprintf('Warning: NaN''s samples have been removed!\n');
 			end%if
 			
 			
 			%%% (3) Set class properties
-			obj.x		= x(~isNan);
-			obj.y		= y(~isNan);
-			obj.s		= s(~isNan);
-			obj.Head	= head(~isNan);
-			obj.Curv	= curv(~isNan);
-			if isscalar(type)
-				% Explicit array size syntax for compatibility in MATLAB
-				% Function blocks within Simulink.
-				obj.Type = type(1) * ones(sz(1), 1, class(type));
-			else
-				obj.Type = type(~isNan);
-			end%if
-			if isscalar(nbr)
-				% Same as above!
-				obj.Nbr = nbr(1) * ones(sz(1), 1, class(nbr));
-			else
-				obj.Nbr = nbr(~isNan);
-			end%if
+			obj.x		= reshape(x(isNotNan), [], 1);
+			obj.y		= reshape(y(isNotNan), [], 1);
+			obj.s		= reshape(s(isNotNan), [], 1);
+			obj.Head	= reshape(head(isNotNan), [], 1);
+			obj.Curv	= reshape(curv(isNotNan), [], 1);
+			obj.Type	= reshape(Type(isNotNan), [], 1);
+			obj.Nbr		= reshape(Nbr(isNotNan), [], 1);
 			
 		end%CONSTRUCTOR
         
@@ -2008,9 +1995,8 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 		function obj = set.Nbr(obj, value)
 			
 			% NBR must be monotonically increasing
-			if any(diff(double(value)) < 0)
-				error('Input NBR must be monotonically increasing!')
-			end%if
+			assert(~any(diff(value) < 0), ...
+				'Input NBR must be monotonically increasing!');
 			
 			% Make sure NBR starts with 1
 			if value(1) ~= 1
