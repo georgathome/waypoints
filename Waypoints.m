@@ -807,11 +807,11 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 			% Rotate
 			% rotation matrix in R^2.
 			rotMat = [cos(phi) -sin(phi); 
-					  sin(phi) +cos(phi)];
+					  sin(phi) +cos(phi)]';
 			
 			for i = 1:numel(obj)
 				% much faster than rotMat*[obj.x;obj.y]
-				xy_new = [obj(i).x, obj(i).y]*rotMat';
+				xy_new = [obj(i).x, obj(i).y]*rotMat;
 				
 				obj(i) = Waypoints(...
 					xy_new(:, 1), ...
@@ -847,7 +847,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 			
 			% The length should be stricly monotonically increasing
 			s_new = [...
-				obj.s(idx:end) - obj.s(idx),...
+				obj.s(idx:end) - obj.s(idx);...
 				obj.s(1:idx-1) + obj.s(end) - obj.s(idx) + delta];
 			
 			%%% Reorder waypoints
@@ -943,14 +943,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 		%	See also UNWRAP, MOD.
 			
 			for i = 1:numel(obj)
-				obj(i) = Waypoints(...
-					obj(i).x, ...
-					obj(i).y, ...
-					obj(i).s, ...
-					obj(i).Curv, ...
-					unwrap( mod(obj(i).Head, 2*pi) ), ...
-					obj(i).Type, ...
-					obj(i).Nbr);
+				obj(i).Head = unwrap( obj(i).Head );
 			end%for
 			
 		end%fcn
@@ -1254,8 +1247,8 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 			N = numel(obj);
 			h = gobjects(N,3);
 			h(:,1) = plot(ax(1), obj, opts{:});
-			npStatus = get(ax(2:3), 'NextPlot');
-			set(ax(2:3), 'NextPlot','replace');
+% 			npStatus = get(ax(2:3), 'NextPlot');
+% 			set(ax(2:3), 'NextPlot','replace');
 			for i = 1:N
 				if i == 2
 					set(ax(2:3), 'NextPlot','add');
@@ -1263,7 +1256,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 				h(i,2) = plot(ax(2), obj(i).s, obj(i).Head, opts{:});
 				h(i,3) = plot(ax(3), obj(i).s, obj(i).Curv, opts{:});
 			end%for
-			set(ax(2:3), {'NextPlot'},npStatus);
+% 			set(ax(2:3), {'NextPlot'},npStatus);
 			
 			grid(ax(2), 'on');
 			ylabel(ax(2), 'Heading [rad]');
@@ -2036,7 +2029,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 			parse(p, varargin{:});
 			
 			% Convert from lat/lon to UTM
-			[x,y] = ll2utm(lat(:)', lon(:)');
+			[x,y] = ll2utm(lat(:), lon(:));
 			s = sFrom_x_y(x, y);
 			
 			if isempty(p.Results.Head)
