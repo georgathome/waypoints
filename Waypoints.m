@@ -469,15 +469,16 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 			
 			% Plot if requested
 			if doPlot
-				plot(obj, 'r.', 'MarkerSize',10, 'DisplayName','Waypoints');
+				plot(obj, 'b-', 'MarkerSize',10, 'DisplayName','Waypoints');
 				hold on
-				plot(xsub, ysub, 'r-', ...
+				plot(xsub, ysub, 'r.', ...
 					'DisplayName','Waypoints under test');
 				% Plot fitted circle and every 10th tangent
-				plottangent(circle, linspace(1, N, (N-1)/10+1), ...
-					'Color','k', 'DisplayName','Circle');
+% 				plottangent(circle, linspace(1, N, (N-1)/10+1), ...
+% 					'Color','k', 'DisplayName','Circle');
+				plot(circle, 'Color','k', 'DisplayName','Circle');
 				hold off
-			end%if			
+			end%if
 			
 		end%fcn
 		
