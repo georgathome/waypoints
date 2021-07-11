@@ -38,7 +38,7 @@ curvplot(ax, rr1,'b.');
 curvplot(ax, rr2,'g.');
 
 % Spline interpolation/approximation
-ppxy = spline(r.s, [r.x; r.y]);
+ppxy = spline(r.s, [r.x, r.y]');
 rs = Waypoints.pp2Waypoints(0:1:r.s(end), ppxy);
 rs.Name = 'interp.';
 curvplot(ax, rs, 'k--');
