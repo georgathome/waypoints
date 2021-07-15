@@ -19,7 +19,7 @@ function [h,ax] = plot(varargin)
 %	
 %	NOTE: This method supports non-scalar inputs OBJ!
 % 
-%	See also PLOT, WAYPOINTS/CURVPLOT, WAYPOINTS/PLOTTANGENT,
+%	See also PLOT, WAYPOINTS/PLOTG2, WAYPOINTS/PLOTTANGENT,
 %	WAYPOINTS/PLOTDIFF.
 
 	% Default plot style if unspecified

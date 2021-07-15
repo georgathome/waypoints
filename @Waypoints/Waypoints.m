@@ -54,10 +54,10 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 %	   fitCircle	 - Fit circle to waypoints.
 %	 
 %	 - VISUALIZATION
-%	   curvplot	 - Plot waypoints, heading and curvature.
 %	   plot		 - Plot waypoints.
 %	   plotdiff	 - Plot waypoints with specific appearance.
 %	   plotdiff_ - Plot waypoints properties with specific appearance.
+%	   plotG2	 - Plot waypoints, heading and curvature.
 %	   plottangent - Plot waypoints and tangents.
 %	   quiver	 - ToDo
 %	 
@@ -1290,41 +1290,26 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 	%%% Static-Methods
 	methods (Static)
 		
-		function obj = ll2Waypoints(lat, lon, varargin)%#codegen
+		function obj = ll2Waypoints(lat, lon, name)%#codegen
 		%LL2WAYPOINTS	Convert LAT/LON coordinates to WAYPOINTS.
 		%	OBJ = LL2WAYPOINTS(LAT,LON)
 			
 			% LAT/LON are required, accept 3 optional name-value pair
 			% arguments
-			narginchk(2, 6);
-			
-			% Parse name-value pair arguments
-			p = inputParser;
-			p.FunctionName = 'll2Waypoints';
-			addParameter(p, 'Head', [], @isnumeric);
-			addParameter(p, 'Curv', [], @isnumeric);
-			addParameter(p, 'Name', [], @ischar);
-			parse(p, varargin{:});
+			narginchk(2, 3);
 			
 			% Convert from lat/lon to UTM
 			[x,y] = ll2utm(lat(:), lon(:));
 			s = sFrom_x_y(x, y);
 			
-			if isempty(p.Results.Head)
-				head = curvHeadFrom_x_y(x, y);
-			else
-				head = p.Results.Head;
-			end%if
-			
-			if isempty(p.Results.Curv)
-				curv = curvFrom_head_s(head, s);
-			else
-				curv = p.Results.Curv;
-			end%if
+			head = cx2Heading(gradient(x), gradient(y));
+			curv = curvFrom_head_s(head, s);
 			
 			% Create WAYPOINTS object
 			obj = Waypoints(x, y, s, curv, head);
-			obj.Name = p.Results.Name;
+			if nargin > 2
+				obj.Name = name;
+			end
 			
 		end%fcn
 		
@@ -1440,7 +1425,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 			
 			%%% Convert to WAYPOINTS
 			s = sFrom_x_y(x(~isNan), y(~isNan));
-			[head,~] = curvHeadFrom_x_y(x(~isNan), y(~isNan));
+			head = cx2Heading(gradient(x(~isNan)), gradient(y(~isNan)));
 			curv = curvFrom_head_s(head, s);
 			
 			obj = Waypoints(x(~isNan), y(~isNan), s, curv, head, -1, 1);

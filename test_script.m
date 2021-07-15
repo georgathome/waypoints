@@ -32,16 +32,16 @@ rr2.Name = 'spline';
 
 % Visualize results
 hold off
-[~, ax] = curvplot(r, 'ro');
+[~, ax] = plotG2(r, 'ro');
 set(ax, 'NextPlot', 'add');
-curvplot(ax, rr1,'b.');
-curvplot(ax, rr2,'g.');
+plotG2(ax, rr1,'b.');
+plotG2(ax, rr2,'g.');
 
 % Spline interpolation/approximation
 ppxy = spline(r.s, [r.x, r.y]');
 rs = Waypoints.pp2Waypoints(0:1:r.s(end), ppxy);
 rs.Name = 'interp.';
-curvplot(ax, rs, 'k--');
+plotG2(ax, rs, 'k--');
 set(ax, 'Nextplot','replace');
 
 legend(ax(1), 'show')

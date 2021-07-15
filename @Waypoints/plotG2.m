@@ -1,5 +1,5 @@
-function [h,ax] = curvplot(varargin)
-%CURVPLOT	Plot waypoints, heading and curvature.
+function [h,ax] = plotG2(varargin)
+%PLOTG2		Plot waypoints, heading and curvature.
 %
 %	For Syntax see:
 %	See also WAYPOINTS/PLOT.
