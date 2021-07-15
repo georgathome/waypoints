@@ -1236,6 +1236,14 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 	%%% SET-Methods
 	methods
 		
+		function obj = set.Name(obj, value)
+			if ischar(value)
+				obj.Name = name;
+			else
+				error('Name argument must be of class char!')
+			end
+		end%fcn
+		
 		function obj = set.s(obj, value)
 			% The length can not decrease from one to following point
 			if any(diff(value) < 0)
@@ -1313,20 +1321,20 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 			
 		end%fcn
 		
-		function obj = pp2Waypoints(t, pp, mode)
+		function obj = pp2Waypoints(pp, t, name, mode)
 		% PP2WAYPOINTS	Convert piecewise polynomial structure to WAYPOINTS. 
-		%   OBJ = PP2WAYPOINTS(T,PP) creates WAYPOINTS instace OBJ from
+		%   OBJ = PP2WAYPOINTS(PP,T) creates WAYPOINTS instace OBJ from
 		%   piecewise polynomial structures PP sampled at T.
 		% 
-		%	OBJ = PP2WAYPOINTS(T,PP,MODE) setting MODE='numint' length S is
-		%	calculated via numerical integration. Default value is
-		%	'cumsum'.
+		%	OBJ = PP2WAYPOINTS(PP,T,NAME,MODE) setting MODE='integral,
+		%	length S is calculated via numerical integration. Default value
+		%	is 'cumsum'.
 		%	
-		%	See also SPLINE, MKPP, UNMKPP.
+		%	See also MKPP, UNMKPP, SPLINE.
 			
-			narginchk(2, 3);
+			narginchk(2, 4);
 			
-			if nargin < 3
+			if nargin < 4
 				mode = 'cumsum';
 			end%if
 			
@@ -1349,19 +1357,17 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 			ppd1 = ppdiff(pp, 1);
 			ppd2 = ppdiff(ppd1, 1);
 			% PPVAL returns an array of size DIM-by-numel(T)
-			xy	 = ppval(pp, t);
-			d1xy = ppval(ppd1, t);
-			d2xy = ppval(ppd2, t);
-
-			% Function handle for path length integration
-			fun = @(t) sqrt(sum(ppval(ppd1, t).^2, 1));
+			xy	 = ppval(pp, t)';
+			d1xy = ppval(ppd1, t)';
+			d2xy = ppval(ppd2, t)';
 			
 			switch mode
 				case 'cumsum'
-					s = sFrom_x_y(xy(1,:)', xy(2,:)');
+					s = sFrom_x_y(xy(:,1), xy(:,2));
 					
-				case 'numint'
+				case 'integral'
 					% Numerical integration of path length
+					fun = @(t) sqrt(sum(ppval(ppd1, t).^2, 1));
 					s = zeros(numel(t), 1);
 					for i = 1:numel(t)-1
 						s(i+1) = integral(@(t) fun(t), t(i), t(i+1));
@@ -1372,22 +1378,21 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 					error('Unknown mode!')
 			end%%switch
 			
-			head = unwrap(atan2(d1xy(2,:), d1xy(1,:)));
-			curv = (d1xy(1,:).*d2xy(2,:) - d2xy(1,:).*d1xy(2,:)) ./ ...
-					sum(d1xy.^2, 1).^(3/2);
+			head = cx2Heading(d1xy(:,1), d1xy(:,2));
+			curv = cx2Curvature(d1xy(:,1), d1xy(:,2), d2xy(:,1), d2xy(:,2));
 			
-			obj = Waypoints(xy(1,:)', xy(2,:)', s, curv', head');
+			obj = Waypoints(xy(:,1), xy(:,2), s, curv, head);
+			if nargin > 2
+				obj.Name = name;
+			end
 			
 		end%fcn
 		
-		function obj = xy2Waypoints(x, y)
+		function obj = xy2Waypoints(x, y, name)
 		%XY2WAYPOINTS	Convert x/y coordinates to WAYPOINTS. 
-		%   OBJ = XY2WAYPOINTS(X,Y) creates the instace OBJ of class WAYPOINTS
-		%   from X/Y-coordinates. X and Y must be vectors with the same
-		%   number of elements!
-		% 
-		%   OBJ = XY2WAYPOINTS(XY) X/Y-coordinates are given in the array XY
-		%   of size 2-by-n.
+		%   OBJ = XY2WAYPOINTS(X,Y) creates the instace OBJ of class
+		%   WAYPOINTS from X/Y-coordinates. X and Y must be vectors with
+		%   the same number of elements!
 		%
 		%	Property S is calculated using cumulative sum.
 		%	Properties PHI and CURV are calculated as difference quotients.
@@ -1395,18 +1400,9 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 		%	Property NBR is set to 1.
 		
 		
-			narginchk(1, 2);
+			narginchk(2, 3);
 		
 			%%% Handle input arguments
-			if nargin < 2
-				if size(x, 2) ~= 2
-					error('When using one argument syntax, input must have 2 columns!');
-				else
-					y = x(:,2);
-					x = x(:,1);
-				end%if
-			end%if
-			
 			if ~isvector(x) || ~isvector(y)
 				error('Input arguments X/Y must be vectors!');
 			end%if
@@ -1429,6 +1425,9 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 			curv = curvFrom_head_s(head, s);
 			
 			obj = Waypoints(x(~isNan), y(~isNan), s, curv, head, -1, 1);
+			if nargin > 2
+				obj.Name = name;
+			end
 			
 		end%fcn
 		
