@@ -18,8 +18,7 @@ geobasemap('satellite')
 
 %% Resample data set
 % Create PATH2D object from Lat/Lon
-r = Waypoints.ll2Waypoints(gps.GPS_Latitude.Data, gps.GPS_Longitude.Data, ...
-	'head', gps.GPS_Heading.Data*pi/180);
+r = Waypoints.ll2Waypoints(gps.GPS_Latitude.Data, gps.GPS_Longitude.Data);
 r = shiftTo(r);
 r.Name = 'RAW';
 
@@ -39,7 +38,7 @@ plotG2(ax, rr2,'g.');
 
 % Spline interpolation/approximation
 ppxy = spline(r.s, [r.x, r.y]');
-rs = Waypoints.pp2Waypoints(0:1:r.s(end), ppxy);
+rs = Waypoints.pp2Waypoints(ppxy, 0:1:r.s(end));
 rs.Name = 'interp.';
 plotG2(ax, rs, 'k--');
 set(ax, 'Nextplot','replace');
