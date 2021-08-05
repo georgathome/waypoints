@@ -66,10 +66,6 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 % 
 %	 - MISC
 %	   laneTracking - Get the lane tracking pose.
-%	 
-%	
-%	See also LKASEGMENT, LKASEGMENTSTRAIGHT, LKASEGMENTCIRCLE,
-%	LKASEGMENTCLOTHOID.
 %
 
 % DEVELOPMENT NOTES:
@@ -87,12 +83,6 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 % Date: $LastChangedDate$
 % Revision: $Revision$
 
-
-
-	properties (Constant, Hidden)
-		% Curvature types
-		CurvTypes = {'waypoints','straight','circle','clothoid','sine'};
-	end%properties
 	
 	properties
 		% NAME - The name of the WAYPOINTS object (char or string).
@@ -121,14 +111,9 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 		%	n-by-1
 		Curv = [0; 0];
 		
-		% TYPE - Curvature types [-]:
+		% TYPE - User defined waypoint type.
 		%	n-by-1 int8
-		%	-1 .. unknown/undefined
-		%	 0 .. straight
-		%	 1 .. circular
-		%	 2 .. clothoid
 		Type = zeros(2, 1, 'int8');
-		% See also WAYPOINTS/CURVTYPES
 		
 		% NBR - Number of waypoint segment.
 		%	n-by-1 uint16
@@ -297,7 +282,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 		%	NOTE: This implementation was inspired by dpsimplify.m by
 		%	Wolfgang Schwanghart found at MathWorks File Exchange.
 		% 
-		%	See also GETSAMPLES.
+		%	See also WAYPOINTS/GETSAMPLES.
 			
 			% Initialize a logical array indicating which waypoints to keep
 			N = numwp(obj);
@@ -351,6 +336,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 		%	  SUM[(Y(i)-C*X(i) - D)^2]
 		%	   i
 		%	
+		%	See also WAYPOINTS/FITCIRCLE.
 			
 			% Handle input arguments
 			if (nargin < 2) || isempty(indMinMax)
@@ -425,6 +411,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 		%	  SUM[(R(i)^2-R^2)^2]
 		%	   i
 		%	
+		%	See also WAYPOINTS/FITSTRAIGHT.
 			
 			% Handle input arguments
 			if nargin < 3 || isempty(indMinMax)
@@ -494,19 +481,20 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 			%%% handle input arguments
 			narginchk(2, 2);
 			
-			if isempty(idx) || ~isvector(idx) || any(~isfinite(idx))
-				error('WAYPOINTS:getSamples',...
-					['Input argument INDRANGE must be a non-empty finite vector!',...
-					'Type help WAYPOINTS/getSamples.']);
+			if isempty(idx)
+				return
+			end%if
+			if any(~isfinite(idx))
+				error('WAYPOINTS:getSamples', 'Indexes must be finite!');
 			end%if
 			
-			if max(idx) > numwp(obj)
+			if max(idx(:)) > numwp(obj)
 				error('WAYPOINTS:getSamples',...
 					'Max. index (%d) exceeds number of waypoints(%d).',...
-					max(idx), numwp(obj));
+					max(idx(:)), numwp(obj));
 			end%if
 			
-			if any(diff(idx) < 0)
+			if any(diff(idx(:)) < 0)
 				error('WAYPOINTS:getSamples',...
 					'Indices IDX must be monotonically increasing!');
 			end%if
@@ -523,28 +511,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 				obj.Nbr(idx) - obj.Nbr(idx(1)) + 1);
 			
 		end%fcn
-		
-		function dist = lateralDistance(OBJ, obj)
-		%UNTITLED Summary of this function goes here
-		%   Detailed explanation goes here
-		
-			N = numwp(OBJ);
-			dist = NaN(N, numel(obj));
-			
-			for i = 1:numel(obj)
-				for n = 1:N
-					[~,latOff_LAD] = laneTracking(obj(i), ...
-						[OBJ.x(n); OBJ.y(n)], ... % current position under test
-						OBJ.Head(n), ... % heading at current position
-						0); %LAD
-					
-					%
-					dist(n, i) = latOff_LAD;
-				end%for
-			end%for
-			
-		end%fcn
-		
+
 		function N = numwp(obj)
 		%NUMWP	Number of waypoints.
 		%	N = NUMWP(OBJ) returns the number N of waypoints of object OBJ. 
@@ -787,10 +754,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 		%	PHI.
 		%	
 		%	If OBJ is an array of WAYPOINTS objects, PHI is applied to all
-		%	array elements.
-		%
-		%	NOTE: If OBJ is an array, PHI is applied to all elements of
-		%	OBJ.
+		%	WAYPOINTS object.
 			
 			% Handle input arguments
 			narginchk(1, 2);
@@ -811,7 +775,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 					  sin(phi) +cos(phi)]';
 			
 			for i = 1:numel(obj)
-				% much faster than rotMat*[obj.x;obj.y]
+				% much faster than rotMat*[obj.x,obj.y]'
 				xy_new = [obj(i).x, obj(i).y]*rotMat;
 				
 				obj(i) = Waypoints(...
@@ -937,11 +901,11 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 		
 		function obj = unwrap(obj)
 		%UNWRAP		Unwrap heading angle property HEAD.
-		%	OBJ = UNWRAP(OBJ) applies UNWRAP(MOD(_,2*pi)) to property HEAD.
+		%	OBJ = UNWRAP(OBJ) applies UNWRAP() to property HEAD.
 		%	
 		%	NOTE: This method supports array inputs OBJ!
 		% 
-		%	See also UNWRAP, MOD.
+		%	See also UNWRAP.
 			
 			for i = 1:numel(obj)
 				obj(i).Head = unwrap( obj(i).Head );
@@ -1238,7 +1202,7 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 		
 		function obj = set.Name(obj, value)
 			if ischar(value)
-				obj.Name = name;
+				obj.Name = value;
 			else
 				error('Name argument must be of class char!')
 			end
@@ -1390,9 +1354,9 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 		
 		function obj = xy2Waypoints(x, y, name)
 		%XY2WAYPOINTS	Convert x/y coordinates to WAYPOINTS. 
-		%   OBJ = XY2WAYPOINTS(X,Y) creates the instace OBJ of class
-		%   WAYPOINTS from X/Y-coordinates. X and Y must be vectors with
-		%   the same number of elements!
+		%   OBJ = XY2WAYPOINTS(X,Y) creates WAYPOINTS instace OBJ from
+		%   cartesian coordinates X and Y, which must be vectors with the
+		%   same number of elements!
 		%
 		%	Property S is calculated using cumulative sum.
 		%	Properties PHI and CURV are calculated as difference quotients.
@@ -1429,6 +1393,29 @@ classdef (InferiorClasses = {?matlab.graphics.axis.Axes}) Waypoints
 				obj.Name = name;
 			end
 			
+		end%fcn
+		
+		function obj = circle(r, phi01, N)
+		%CIRCLE		Create circle.
+		%	OBJ = WAYPOINTS.CIRCLE(R) creates WAYPOINTS instance OBJ
+		%	describing a circle of radius R.
+		%
+		%	OBJ = WAYPOINTS.CIRCLE(R, PHI01) sets the inital and final
+		%	angle to PHI01(1) and PHI01(2) respectively. Defalut value is
+		%	[0; 2*pi];
+		%
+		%	OBJ = WAYPOINTS.CIRCLE(R, PHI01, N) creates the circle using N
+		%	samples. Default value is N = 100.
+			
+			if nargin < 3
+				N = 100;
+			end
+			if nargin < 2
+				phi01 = [0; 2*pi];
+			end
+			t = linspace(phi01(1), phi01(2), N);
+			obj = Waypoints(r*cos(t), r*sin(t), r*(t-t(1)), repmat(1/r,N,1), t+pi/2);
+			obj.Name = ['Circle R=',num2str(r)]; 
 		end%fcn
 		
 	end%methods
